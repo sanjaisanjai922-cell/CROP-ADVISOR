@@ -50,7 +50,10 @@ public class CropAdvisorApplication {
     public interface Regions extends JpaRepository<Region,Long>{}
     public interface Farmers extends JpaRepository<Farmer,Long>{}
     public interface Officers extends JpaRepository<Officer,Long>{Optional<Officer> findFirstByRegionId(Long id);}
-    public interface Tickets extends JpaRepository<Ticket,Long>{List<Ticket> findByFarmerIdOrderByCreatedAtDesc(Long id);}
+    public interface Tickets extends JpaRepository<Ticket,Long>{
+        List<Ticket> findByFarmerIdOrderByCreatedAtDesc(Long id);
+        List<Ticket> findByOfficerIdOrderByCreatedAtDesc(Long id);
+    }
 
     @RestController @RequestMapping("/api") @CrossOrigin(origins="*")
     public static class Api {
@@ -61,6 +64,15 @@ public class CropAdvisorApplication {
         @GetMapping("/farmers") public List<Farmer> farmers(){return farmers.findAll();}
         @GetMapping("/officers") public List<Officer> officers(){return officers.findAll();}
         @GetMapping("/tickets") public List<Ticket> tickets(){return tickets.findAll();}
+        @GetMapping("/officers/{id}/tickets") public List<Ticket> officerTickets(@PathVariable Long id){
+            Officer o=officers.findById(id).orElseThrow(()->new IllegalArgumentException("Officer not found"));
+            for(Ticket x:tickets.findAll()){
+                if(x.officer==null && x.farmer!=null && x.farmer.region!=null && o.region!=null && Objects.equals(x.farmer.region.id,o.region.id)){
+                    x.officer=o; tickets.save(x);
+                }
+            }
+            return tickets.findByOfficerIdOrderByCreatedAtDesc(id);
+        }
         @GetMapping("/farmers/{id}/tickets") public List<Ticket> farmerTickets(@PathVariable Long id){return tickets.findByFarmerIdOrderByCreatedAtDesc(id);}
 
         @PostMapping("/farmers") public Farmer createFarmer(@RequestBody Map<String,Object> body){
